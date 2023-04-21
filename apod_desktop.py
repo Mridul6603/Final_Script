@@ -111,13 +111,16 @@ def init_apod_cache(parent_dir):
     if not os.path.exists(image_cache_db):
         con = sqlite3.connect(image_cache_db)
         
-        cur = con.cursor()  
+        cur = con.cursor()
 
         create_tbl_query = """
         CREATE TABLE IF NOT EXISTS nasa_apod
         (
-        DATE TEXT PRIMARY KEY,
-        Path TEXT NOT NULL
+        ID INTEGER PRIMARY KEY,
+        Title TEXT NOT NULL,
+        Explanation TEXT NOT NULL,
+        Path TEXT NOT NULL,
+        SHA_256 TEXT NOT NULL
         );
         """
         cur.execute(create_tbl_query)
@@ -148,9 +151,7 @@ def add_apod_to_cache(apod_date):
     # TODO: Download the APOD image
 
     image = image_lib.download_image(url)
-    readable_hash = hashlib.sha256(image).hexdigest()
-    print(readable_hash)
-
+   
     # TODO: Check whether the APOD already exists in the image cache
     # TODO: Save the APOD file to the image cache directory
 
@@ -159,25 +160,32 @@ def add_apod_to_cache(apod_date):
         add_tbl_query = """
             INSERT INTO nasa_apod
             (
-            Date,
-            Path 
+            Title,
+            Explanation,
+            Path,
+            SHA_256 
             )
-            VALUES (?, ?);
+            VALUES (?, ?, ?, ?);
             """
         con = sqlite3.connect(image_cache_db)
 
         cur = con.cursor()
         
-        cur.execute(add_tbl_query, [apod_date, image_cache_dir + str(apod_date)])
+        with open(image_cache_dir + str(apod_date),"rb") as f:
+            bytes = f.read() # read entire file as bytes
+        image_sha256 = hashlib.sha256(bytes).hexdigest()
+        print(image_sha256)
+
+        cur.execute(add_tbl_query, [apod_info["title"], apod_info["explanation"], image_cache_dir + str(apod_date), image_sha256 ])
         
         con.commit()
 
-        return apod_date
+        return get_apod_id_from_db(image_sha256)
 
     # TODO: Add the APOD information to the DB
 
     return 0
-
+# do this first
 def add_apod_to_db(title, explanation, file_path, sha256):
     """Adds specified APOD information to the image cache DB.
      
@@ -192,6 +200,7 @@ def add_apod_to_db(title, explanation, file_path, sha256):
     """
     # TODO: Complete function body
     return 0
+# do this first
 
 def get_apod_id_from_db(image_sha256):
     """Gets the record ID of the APOD in the cache having a specified SHA-256 hash value
@@ -204,8 +213,20 @@ def get_apod_id_from_db(image_sha256):
     Returns:
         int: Record ID of the APOD in the image cache DB, if it exists. Zero, if it does not.
     """
+    db = f"SELECT ID from nasa_apod WHERE SHA_256='{image_sha256}';"
+
+    con = sqlite3.connect(image_cache_db)
+        
+    cur = con.cursor()
+    
+    cur.execute(db)
+
+    save = cur.fetchone()[0]
+    
     # TODO: Complete function body
-    return 0
+    return cur.fetchone()[0]
+
+# do this first
 
 def determine_apod_file_path(image_title, image_url):
     """Determines the path at which a newly downloaded APOD image must be 
@@ -234,6 +255,7 @@ def determine_apod_file_path(image_title, image_url):
     """
     # TODO: Complete function body
     return
+# do this first
 
 def get_apod_info(image_id):
     """Gets the title, explanation, and full path of the APOD having a specified
